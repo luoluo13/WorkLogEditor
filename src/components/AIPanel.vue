@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { NInput, NButton, NScrollbar, NAvatar, useMessage, NPopover, NForm, NFormItem } from 'naive-ui'
+import { NInput, NButton, NScrollbar, NAvatar, useMessage, NPopover, NForm, NFormItem, NIcon } from 'naive-ui'
 import { SendOutline, ChatbubbleEllipsesOutline, SettingsOutline, TrashOutline } from '@vicons/ionicons5'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../stores/settings'

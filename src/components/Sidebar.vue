@@ -150,12 +150,12 @@ const createNewLog = async () => {
           </n-list-item>
         </n-list>
       </div>
-      <div v-else class="p-2">
+      <div v-else class="p-2 calendar-container">
         <n-calendar
           #default="{ year, month, date }"
           @update:value="handleDateClick"
         >
-          <div v-if="logDates.has(`${year}/${month}/${date}`)" class="flex justify-center">
+          <div v-if="logDates.has(`${year}/${month}/${date}`)" class="flex justify-center mt-1">
             <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
           </div>
         </n-calendar>
@@ -163,3 +163,21 @@ const createNewLog = async () => {
     </n-scrollbar>
   </div>
 </template>
+
+<style scoped>
+.calendar-container :deep(.n-calendar) {
+  --n-cell-height: 40px !important;
+  font-size: 12px;
+}
+
+.calendar-container :deep(.n-calendar-header) {
+  padding: 8px;
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .calendar-container :deep(.n-calendar) {
+    --n-cell-height: 50px !important;
+  }
+}
+</style>

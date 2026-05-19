@@ -4,7 +4,7 @@ import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import { useLogStore } from '../stores/log'
 import { useSettingsStore } from '../stores/settings'
-import { NInput, NSpace, NButton, useNotification, NDropdown } from 'naive-ui'
+import { NInput, NButton, useNotification, NDropdown, NIcon } from 'naive-ui'
 import { save } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'
 import { DownloadOutline } from '@vicons/ionicons5'
@@ -102,34 +102,36 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="logStore.currentLog" class="h-full flex flex-col space-y-4">
-    <div class="flex items-center space-x-4">
+  <div v-if="logStore.currentLog" class="h-full flex flex-col space-y-2 md:space-y-4">
+    <div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4">
       <n-input
         v-model:value="title"
         placeholder="输入标题..."
-        class="text-xl font-bold flex-1"
+        class="text-lg md:text-xl font-bold flex-1"
         @blur="onAutoSave"
       />
-      <n-space>
+      <div class="flex justify-end space-x-2">
         <n-dropdown :options="exportOptions" @select="handleExport">
           <n-button quaternary circle>
             <template #icon><n-icon><DownloadOutline /></n-icon></template>
           </n-button>
         </n-dropdown>
         <n-button type="primary" @click="onManualSave">保存</n-button>
-      </n-space>
+      </div>
     </div>
     
     <div class="flex-1 overflow-hidden rounded-lg border border-gray-200 dark:border-zinc-800">
       <MdEditor
         v-model="content"
         :theme="settingsStore.isDarkMode ? 'dark' : 'light'"
+        :toolbars-exclude="['github']"
+        preview-theme="github"
         class="h-full"
         @onSave="handleSave"
       />
     </div>
 
-    <div class="flex justify-between items-center text-xs text-gray-500 px-1">
+    <div class="flex justify-between items-center text-xs text-gray-500 px-1 pb-2">
       <span>{{ logStore.currentLog.date }}</span>
       <span>字数: {{ wordCount }}</span>
     </div>

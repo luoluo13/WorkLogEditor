@@ -3,9 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_sql::{Migration, MigrationKind};
-use tauri_plugin_dialog;
-use uuid;
-use chrono;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LogEntry {
@@ -34,10 +31,20 @@ fn get_db_path(app_handle: &tauri::AppHandle) -> std::path::PathBuf {
 async fn create_log(app_handle: tauri::AppHandle, log: LogEntry) -> Result<(), String> {
     let path = get_db_path(&app_handle);
     let conn = Connection::open(path).map_err(|e| e.to_string())?;
+    
+    // Ensure table exists before insert (as a safety measure for release build)
+    conn.execute("CREATE TABLE IF NOT EXISTS logs (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        date TEXT NOT NULL,
+        tags TEXT NOT NULL
+    );", []).map_err(|e| e.to_string())?;
+
     let tags_json = serde_json::to_string(&log.tags).unwrap_or_else(|_| "[]".to_string());
     
     conn.execute(
-        "INSERT INTO logs (id, title, content, date, tags) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT OR REPLACE INTO logs (id, title, content, date, tags) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![log.id, log.title, log.content, log.date, tags_json],
     )
     .map_err(|e| e.to_string())?;
@@ -177,7 +184,6 @@ pub struct ChatMessage {
 }
 
 use std::io::{Read as _, Write as _};
-use walkdir::WalkDir;
 
 #[tauri::command]
 async fn export_log_as_markdown(log: LogEntry, path: String) -> Result<(), String> {
@@ -272,8 +278,9 @@ async fn ask_ai(
         .map_err(|e| e.to_string())?;
 
     if !response.status().is_success() {
+        let status = response.status();
         let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("API Error ({}): {}", response.status(), error_text));
+        return Err(format!("API Error ({}): {}", status, error_text));
     }
 
     let result: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
