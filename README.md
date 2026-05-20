@@ -11,7 +11,34 @@
  -  **轻量快速**：基于 Tauri 构建
 
  > 未来将支持 OpenAI、Ollama 等更多 AI 供应商，敬请期待。 
+ ##  快速开始
 
+ ### 环境配置
+
+ 在开始开发或构建之前，请确保您的系统已安装以下环境：
+
+ 1. **Rust 环境**: 
+    - 访问 [Rustup.rs](https://rustup.rs/) 下载并安装 Rust 编译器。
+    - Windows 用户需要安装 [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)。
+ 2. **Node.js**: 建议使用 v18 或更高版本。
+ 3. **包管理器**: 推荐使用 `npm` 。
+
+ ### 启动开发环境
+
+ ```bash
+ # 1. 安装前端依赖
+ npm install
+
+ # 2. 启动开发模式 (会自动开启 Tauri 窗口)
+ npm run tauri dev
+ ```
+
+ ### 构建安装包 (.exe)
+
+ ```bash
+ # 构建 Windows 安装程序
+ npm run tauri build
+ ```
  ## 快捷键 
 
  | 操作 | 快捷键 | 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { NList, NListItem, NScrollbar, NButton, NIcon, NInput, NTag, NSpace, NDropdown, useNotification, NCalendar, NTabs, NTabPane } from 'naive-ui'
-import { AddOutline, SearchOutline, EllipsisVerticalOutline, CalendarOutline, ListOutline } from '@vicons/ionicons5'
+import { NList, NListItem, NScrollbar, NButton, NIcon, NInput, NTag, NSpace, NDropdown, useNotification, NCalendar, NTabs, NTabPane, NPopconfirm } from 'naive-ui'
+import { AddOutline, SearchOutline, EllipsisVerticalOutline, CalendarOutline, ListOutline, TrashOutline } from '@vicons/ionicons5'
 import { save, open } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'
 import { useLogStore } from '../stores/log'
@@ -83,6 +83,15 @@ const createNewLog = async () => {
   }
   await logStore.addLog(newLog)
 }
+
+const deleteLog = async (id: string) => {
+  try {
+    await logStore.deleteLog(id)
+    notification.success({ content: '日志已删除' })
+  } catch (err) {
+    notification.error({ content: '删除失败' })
+  }
+}
 </script>
 
 <template>
@@ -135,8 +144,9 @@ const createNewLog = async () => {
             :key="log.id"
             @click="logStore.currentLog = log"
             :class="{ 'bg-blue-50 dark:bg-blue-900/20': logStore.currentLog?.id === log.id }"
+            class="relative group"
           >
-            <div class="flex flex-col space-y-1">
+            <div class="flex flex-col space-y-1 pr-8">
               <span class="font-medium truncate">{{ log.title }}</span>
               <div class="flex justify-between items-center">
                 <span class="text-xs text-gray-500">{{ log.date }}</span>
@@ -146,6 +156,19 @@ const createNewLog = async () => {
                   </n-tag>
                 </n-space>
               </div>
+            </div>
+            <!-- Delete Button -->
+            <div class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <n-popconfirm @positive-click.stop="deleteLog(log.id)" @click.stop>
+                <template #trigger>
+                  <n-button quaternary circle size="small" type="error">
+                    <template #icon>
+                      <n-icon><TrashOutline /></n-icon>
+                    </template>
+                  </n-button>
+                </template>
+                确定要删除这条日志吗？
+              </n-popconfirm>
             </div>
           </n-list-item>
         </n-list>
