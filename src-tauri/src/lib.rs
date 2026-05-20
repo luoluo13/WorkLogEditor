@@ -177,12 +177,6 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ChatMessage {
-    role: String,
-    content: String,
-}
-
 use std::io::{Read as _, Write as _};
 
 #[tauri::command]
@@ -251,13 +245,296 @@ async fn import_from_markdown(path: String) -> Result<LogEntry, String> {
     Ok(log)
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatMessage {
+    role: String,
+    content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_calls: Option<Vec<ToolCall>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_call_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolCall {
+    id: String,
+    r#type: String,
+    function: ToolFunction,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ToolFunction {
+    name: String,
+    arguments: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ToolSchema {
+    r#type: String,
+    function: ToolFunctionDefinition,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ToolFunctionDefinition {
+    name: String,
+    description: String,
+    parameters: serde_json::Value,
+}
+
 #[tauri::command]
-async fn ask_ai(
+fn get_all_tools() -> Vec<ToolSchema> {
+    vec![
+        ToolSchema {
+            r#type: "function".to_string(),
+            function: ToolFunctionDefinition {
+                name: "get_current_date".to_string(),
+                description: "获取当前日期、时间及周数信息".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {}
+                }),
+            },
+        },
+        ToolSchema {
+            r#type: "function".to_string(),
+            function: ToolFunctionDefinition {
+                name: "list_logs".to_string(),
+                description: "获取所有日志列表（包含标题、日期和标签）".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {}
+                }),
+            },
+        },
+        ToolSchema {
+            r#type: "function".to_string(),
+            function: ToolFunctionDefinition {
+                name: "get_log_by_date".to_string(),
+                description: "获取指定日期的详细日志内容".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "date": { "type": "string", "description": "日期，格式为 YYYY/MM/DD" }
+                    },
+                    "required": ["date"]
+                }),
+            },
+        },
+        ToolSchema {
+            r#type: "function".to_string(),
+            function: ToolFunctionDefinition {
+                name: "get_recent_logs".to_string(),
+                description: "获取最近 N 天的日志列表".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "days": { "type": "integer", "description": "天数，默认为 7" }
+                    }
+                }),
+            },
+        },
+        ToolSchema {
+            r#type: "function".to_string(),
+            function: ToolFunctionDefinition {
+                name: "search_logs".to_string(),
+                description: "根据关键词搜索日志标题或内容".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "keyword": { "type": "string", "description": "搜索关键词" }
+                    },
+                    "required": ["keyword"]
+                }),
+            },
+        },
+        ToolSchema {
+            r#type: "function".to_string(),
+            function: ToolFunctionDefinition {
+                name: "list_all_tags".to_string(),
+                description: "列出所有已使用的标签及其出现频率".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {}
+                }),
+            },
+        },
+        ToolSchema {
+            r#type: "function".to_string(),
+            function: ToolFunctionDefinition {
+                name: "create_new_log".to_string(),
+                description: "创建一条新的工作日志。注意：此操作需要用户确认。".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string", "description": "日志标题" },
+                        "content": { "type": "string", "description": "日志 Markdown 内容" },
+                        "tags": { "type": "array", "items": { "type": "string" }, "description": "标签列表" }
+                    },
+                    "required": ["title", "content"]
+                }),
+            },
+        },
+        ToolSchema {
+            r#type: "function".to_string(),
+            function: ToolFunctionDefinition {
+                name: "update_log".to_string(),
+                description: "修改已有的工作日志。注意：此操作需要用户确认。".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "string", "description": "日志 ID" },
+                        "title": { "type": "string", "description": "新的日志标题" },
+                        "content": { "type": "string", "description": "新的日志内容" },
+                        "tags": { "type": "array", "items": { "type": "string" }, "description": "新的标签列表" }
+                    },
+                    "required": ["id"]
+                }),
+            },
+        },
+        ToolSchema {
+            r#type: "function".to_string(),
+            function: ToolFunctionDefinition {
+                name: "calculate_work_stats".to_string(),
+                description: "统计指定时间范围内的日志情况（如标签分布、记录天数等）".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "start_date": { "type": "string", "description": "开始日期 YYYY/MM/DD" },
+                        "end_date": { "type": "string", "description": "结束日期 YYYY/MM/DD" }
+                    }
+                }),
+            },
+        },
+    ]
+}
+
+#[tauri::command]
+async fn execute_tool(app_handle: tauri::AppHandle, name: String, arguments: String) -> Result<serde_json::Value, String> {
+    let args: serde_json::Value = serde_json::from_str(&arguments).map_err(|e| e.to_string())?;
+    
+    match name.as_str() {
+        "get_current_date" => {
+            let now = chrono::Local::now();
+            Ok(serde_json::json!({
+                "success": true,
+                "data": {
+                    "date": now.format("%Y/%m/%d").to_string(),
+                    "time": now.format("%H:%M:%S").to_string(),
+                    "weekday": now.format("%A").to_string(),
+                    "week_number": now.format("%U").to_string()
+                }
+            }))
+        },
+        "list_logs" => {
+            let logs = list_logs(app_handle).await?;
+            Ok(serde_json::json!({ "success": true, "data": logs }))
+        },
+        "get_log_by_date" => {
+            let date = args["date"].as_str().ok_or("Missing date argument")?;
+            let log = get_log_by_date(app_handle, date.to_string()).await?;
+            Ok(serde_json::json!({ "success": true, "data": log }))
+        },
+        "get_recent_logs" => {
+            let days = args["days"].as_i64().unwrap_or(7);
+            let logs = list_logs(app_handle).await?;
+            let now = chrono::Local::now().date_naive();
+            let recent_logs: Vec<LogEntry> = logs.into_iter().filter(|l| {
+                if let Ok(log_date) = chrono::NaiveDate::parse_from_str(&l.date, "%Y/%m/%d") {
+                    (now - log_date).num_days() < days
+                } else {
+                    false
+                }
+            }).collect();
+            Ok(serde_json::json!({ "success": true, "data": recent_logs }))
+        },
+        "search_logs" => {
+            let keyword = args["keyword"].as_str().ok_or("Missing keyword argument")?;
+            let logs = search_logs(app_handle, keyword.to_string()).await?;
+            Ok(serde_json::json!({ "success": true, "data": logs }))
+        },
+        "list_all_tags" => {
+            let logs = list_logs(app_handle).await?;
+            let mut tags_count = std::collections::HashMap::new();
+            for log in logs {
+                for tag in log.tags {
+                    *tags_count.entry(tag).or_insert(0) += 1;
+                }
+            }
+            Ok(serde_json::json!({ "success": true, "data": tags_count }))
+        },
+        "calculate_work_stats" => {
+            let logs = list_logs(app_handle).await?;
+            let start_date = args["start_date"].as_str().unwrap_or("0000/01/01");
+            let end_date = args["end_date"].as_str().unwrap_or("9999/12/31");
+            
+            let filtered_logs: Vec<LogEntry> = logs.into_iter().filter(|l| {
+                l.date >= start_date.to_string() && l.date <= end_date.to_string()
+            }).collect();
+
+            let mut tag_distribution = std::collections::HashMap::new();
+            for log in &filtered_logs {
+                for tag in &log.tags {
+                    *tag_distribution.entry(tag.clone()).or_insert(0) += 1;
+                }
+            }
+
+            Ok(serde_json::json!({
+                "success": true,
+                "data": {
+                    "total_logs": filtered_logs.len(),
+                    "tag_distribution": tag_distribution,
+                    "period": format!("{} to {}", start_date, end_date)
+                }
+            }))
+        },
+        "create_new_log" => {
+            Ok(serde_json::json!({
+                "success": true,
+                "needs_confirmation": true,
+                "action": "create_log",
+                "data": args
+            }))
+        },
+        "update_log" => {
+            Ok(serde_json::json!({
+                "success": true,
+                "needs_confirmation": true,
+                "action": "update_log",
+                "data": args
+            }))
+        },
+        _ => Err(format!("Unknown tool: {}", name))
+    }
+}
+
+#[tauri::command]
+async fn get_ollama_models(base_url: String) -> Result<Vec<String>, String> {
+    let client = reqwest::Client::new();
+    let url = format!("{}/api/tags", base_url.trim_end_matches('/'));
+    
+    let response = client.get(url).send().await.map_err(|e| e.to_string())?;
+    let json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
+    
+    let mut models = Vec::new();
+    if let Some(models_array) = json["models"].as_array() {
+        for m in models_array {
+            if let Some(name) = m["name"].as_str() {
+                models.push(name.to_string());
+            }
+        }
+    }
+    
+    Ok(models)
+}
+
+#[tauri::command]
+async fn ask_ai_with_tools(
     api_key: String,
     base_url: String,
     model: String,
     messages: Vec<ChatMessage>,
-) -> Result<String, String> {
+    tools: Option<Vec<ToolSchema>>,
+) -> Result<serde_json::Value, String> {
     let client = reqwest::Client::new();
     let url = if base_url.ends_with("/chat/completions") {
         base_url
@@ -265,14 +542,23 @@ async fn ask_ai(
         format!("{}/chat/completions", base_url.trim_end_matches('/'))
     };
 
-    let response = client
-        .post(url)
-        .header("Authorization", format!("Bearer {}", api_key))
-        .json(&serde_json::json!({
-            "model": model,
-            "messages": messages,
-            "temperature": 0.7,
-        }))
+    let mut body = serde_json::json!({
+        "model": model,
+        "messages": messages,
+        "temperature": 0.7,
+    });
+
+    if let Some(t) = tools {
+        body["tools"] = serde_json::json!(t);
+    }
+
+    let mut request = client.post(url);
+    if !api_key.is_empty() {
+        request = request.header("Authorization", format!("Bearer {}", api_key));
+    }
+
+    let response = request
+        .json(&body)
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -284,11 +570,7 @@ async fn ask_ai(
     }
 
     let result: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-    let answer = result["choices"][0]["message"]["content"]
-        .as_str()
-        .ok_or("Failed to parse AI response")?;
-
-    Ok(answer.to_string())
+    Ok(result["choices"][0]["message"].clone())
 }
 
 use tauri::menu::{Menu, MenuItem};
@@ -367,7 +649,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
-            ask_ai,
             create_log,
             update_log,
             delete_log,
@@ -376,7 +657,11 @@ pub fn run() {
             search_logs,
             export_log_as_markdown,
             export_logs_as_zip,
-            import_from_markdown
+            import_from_markdown,
+            get_all_tools,
+            execute_tool,
+            get_ollama_models,
+            ask_ai_with_tools
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
