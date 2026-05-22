@@ -182,6 +182,8 @@ const confirmToolExecution = async () => {
         tags: args.tags || []
       }
       await logStore.addLog(newLog)
+      // Switch to the newly created log
+      logStore.currentLog = newLog
       toolContent = JSON.stringify({ success: true, message: '日志已成功创建' })
     } else if (result.action === 'update_log') {
       await logStore.updateLog(args.id, {
@@ -332,7 +334,7 @@ const clearChat = () => {
         </div>
         <n-button type="primary" :loading="loading" @click="sendMessage" :disabled="!userInput.trim()">
           <template #icon>
-            <SendOutline />
+            <n-icon><SendOutline /></n-icon>
           </template>
           发送
         </n-button>

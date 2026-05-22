@@ -4,10 +4,10 @@ import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import { useLogStore } from '../stores/log'
 import { useSettingsStore } from '../stores/settings'
-import { NInput, NButton, useNotification, NDropdown, NIcon } from 'naive-ui'
+import { NInput, NButton, useNotification, NDropdown, NIcon, NDynamicTags } from 'naive-ui'
 import { save } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'
-import { DownloadOutline } from '@vicons/ionicons5'
+import { DownloadOutline, PricetagsOutline, AddOutline } from '@vicons/ionicons5'
 
 const logStore = useLogStore()
 const settingsStore = useSettingsStore()
@@ -15,6 +15,7 @@ const notification = useNotification()
 
 const content = ref('')
 const title = ref('')
+const tags = ref<string[]>([])
 const wordCount = computed(() => {
   const text = content.value.trim()
   if (!text) return 0
@@ -54,6 +55,7 @@ watch(() => logStore.currentLog, (newLog) => {
   if (newLog) {
     content.value = newLog.content
     title.value = newLog.title
+    tags.value = [...(newLog.tags || [])]
   }
 }, { immediate: true })
 
@@ -61,7 +63,8 @@ const handleSave = async (options?: { showNotification?: boolean }) => {
   if (logStore.currentLog) {
     await logStore.updateLog(logStore.currentLog.id, {
       content: content.value,
-      title: title.value
+      title: title.value,
+      tags: [...tags.value]
     })
     if (options?.showNotification !== false) {
       notification.success({
@@ -76,12 +79,12 @@ const onManualSave = () => handleSave({ showNotification: true })
 const onAutoSave = () => handleSave({ showNotification: false })
 
 // Auto-save logic
-watch([content, title], () => {
+watch([content, title, tags], () => {
   if (saveTimeout) clearTimeout(saveTimeout)
   saveTimeout = window.setTimeout(() => {
     onAutoSave()
   }, 2000)
-})
+}, { deep: true })
 
 // Shortcut logic
 const handleKeydown = (e: KeyboardEvent) => {
@@ -118,6 +121,26 @@ onUnmounted(() => {
         </n-dropdown>
         <n-button type="primary" @click="onManualSave">保存</n-button>
       </div>
+    </div>
+
+    <!-- Tags Editor -->
+    <div class="flex items-center px-1 min-h-[34px]">
+      <n-icon :component="PricetagsOutline" class="mr-2 text-gray-400 flex-shrink-0" size="18" />
+      <n-dynamic-tags v-model:value="tags" @update:value="onAutoSave">
+        <template #trigger="{ activate, disabled }">
+          <n-button
+            size="small"
+            dashed
+            :disabled="disabled"
+            @click="activate()"
+          >
+            <template #icon>
+              <n-icon><AddOutline /></n-icon>
+            </template>
+            添加标签
+          </n-button>
+        </template>
+      </n-dynamic-tags>
     </div>
     
     <div class="flex-1 overflow-hidden rounded-lg border border-gray-200 dark:border-zinc-800">

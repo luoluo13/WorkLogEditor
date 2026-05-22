@@ -13,7 +13,7 @@ pub struct LogEntry {
     tags: Vec<String>,
 }
 
-pub struct DbState(Mutex<Connection>);
+pub struct DbState(pub Mutex<Connection>);
 
 fn get_db_path(app_handle: &tauri::AppHandle) -> std::path::PathBuf {
     let mut path = app_handle
@@ -536,20 +536,31 @@ async fn ask_ai_with_tools(
     tools: Option<Vec<ToolSchema>>,
 ) -> Result<serde_json::Value, String> {
     let client = reqwest::Client::new();
-    let url = if base_url.ends_with("/chat/completions") {
-        base_url
-    } else {
-        format!("{}/chat/completions", base_url.trim_end_matches('/'))
-    };
+    
+    // Logic to handle Ollama's base URL and OpenAI compatible endpoint
+    let mut url = base_url.trim_end_matches('/').to_string();
+    
+    // If it looks like a raw Ollama URL (localhost:11434) and doesn't have /v1 or /api
+    if (url.contains("11434") || url.contains("localhost")) && !url.contains("/v1") && !url.contains("/api") {
+        url = format!("{}/v1", url);
+    }
+    
+    // Append chat/completions if not present
+    if !url.ends_with("/chat/completions") {
+        url = format!("{}/chat/completions", url);
+    }
 
     let mut body = serde_json::json!({
         "model": model,
         "messages": messages,
         "temperature": 0.7,
+        "stream": false, // Explicitly disable streaming for single JSON response
     });
 
     if let Some(t) = tools {
-        body["tools"] = serde_json::json!(t);
+        if !t.is_empty() {
+            body["tools"] = serde_json::json!(t);
+        }
     }
 
     let mut request = client.post(url);
@@ -561,7 +572,7 @@ async fn ask_ai_with_tools(
         .json(&body)
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Request failed: {}", e))?;
 
     if !response.status().is_success() {
         let status = response.status();
@@ -569,8 +580,15 @@ async fn ask_ai_with_tools(
         return Err(format!("API Error ({}): {}", status, error_text));
     }
 
-    let result: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
-    Ok(result["choices"][0]["message"].clone())
+    let result: serde_json::Value = response.json().await.map_err(|e| format!("Failed to parse JSON: {}", e))?;
+    
+    // Handle OpenAI format: result["choices"][0]["message"]
+    if let Some(message) = result.get("choices").and_then(|c| c.get(0)).and_then(|m| m.get("message")) {
+        Ok(message.clone())
+    } else {
+        // Fallback for direct model response if some API returns it differently
+        Err(format!("Unexpected response format: {}", result))
+    }
 }
 
 use tauri::menu::{Menu, MenuItem};

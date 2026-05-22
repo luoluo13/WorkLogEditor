@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NConfigProvider, NLayout, NLayoutSider, NLayoutContent, NLayoutHeader, NMessageProvider, NNotificationProvider, NButton, NIcon, darkTheme } from 'naive-ui'
-import { MoonOutline, SunnyOutline, SettingsOutline, ChatbubbleEllipsesOutline } from '@vicons/ionicons5'
+import { MoonOutline, SunnyOutline, SettingsOutline, ChatbubbleEllipsesOutline, CloseOutline } from '@vicons/ionicons5'
 import { useSettingsStore } from './stores/settings'
 import { useLogStore } from './stores/log'
 import Sidebar from './components/Sidebar.vue'
@@ -27,10 +27,14 @@ const handleResize = () => {
 }
 
 onMounted(async () => {
-  window.addEventListener('resize', handleResize)
-  handleResize()
-  await settingsStore.loadSettings()
-  logStore.fetchLogs()
+  try {
+    window.addEventListener('resize', handleResize)
+    handleResize()
+    await settingsStore.loadSettings()
+    await logStore.fetchLogs()
+  } catch (err) {
+    console.error('Failed to initialize app:', err)
+  }
 })
 
 onUnmounted(() => {
@@ -91,7 +95,7 @@ onUnmounted(() => {
           </n-layout-header>
 
           <n-layout has-sider position="absolute" style="top: 64px; bottom: 0">
-            <n-layout-content content-style="padding: 12px; md:padding: 24px;" class="bg-gray-50 dark:bg-zinc-900 overflow-y-auto">
+            <n-layout-content content-style="padding: 12px;" class="bg-gray-50 dark:bg-zinc-900 overflow-y-auto md:p-6">
               <Editor />
             </n-layout-content>
             
@@ -110,7 +114,7 @@ onUnmounted(() => {
               <div class="flex justify-between items-center p-4 border-b dark:border-zinc-800">
                 <span class="font-bold">AI 助手</span>
                 <n-button quaternary circle @click="showAIPanel = false">
-                  <template #icon><n-icon><SettingsOutline /></n-icon></template>
+                  <template #icon><n-icon><CloseOutline /></n-icon></template>
                 </n-button>
               </div>
               <AIPanel />
