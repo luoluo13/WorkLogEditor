@@ -1,6 +1,6 @@
 # 智能工作日志编辑器 (WorkLog Editor) 
 
- 一款跨平台桌面应用，用于高效记录每日工作日志，并集成 DeepSeek AI 辅助写作与总结。 
+ 一款基于 Tauri 2.0、Vue 3 和 TypeScript 构建的跨平台桌面应用，结合 Tailwind CSS 与 Naive UI 打造独特的手绘蜡笔视觉风格，并深度集成 DeepSeek AI 辅助写作。 
 
  ## 主要功能 
 

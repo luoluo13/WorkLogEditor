@@ -36,11 +36,11 @@ const onProviderChange = async () => {
     :show="show"
     preset="card"
     title="应用设置"
-    class="max-w-xl"
+    class="max-w-xl rough-border border-2 border-gray-800"
     @update:show="handleClose"
   >
-    <n-form>
-      <h3 class="text-lg font-bold mb-4">AI 配置</h3>
+    <n-form class="font-hand">
+      <h3 class="text-xl font-bold mb-4 text-crayon-purple">AI 配置</h3>
       
       <n-form-item label="模型供应商">
         <n-radio-group v-model:value="settingsStore.provider" name="provider" @update:value="onProviderChange">
@@ -56,38 +56,39 @@ const onProviderChange = async () => {
             type="password"
             show-password-on="click"
             placeholder="输入您的 API Key"
+            class="rough-border !border-gray-300"
           />
         </n-form-item>
         <n-form-item label="Base URL">
-          <n-input v-model:value="settingsStore.apiEndpoint" placeholder="https://api.deepseek.com/v1" />
+          <n-input v-model:value="settingsStore.apiEndpoint" placeholder="https://api.deepseek.com/v1" class="rough-border !border-gray-300" />
         </n-form-item>
         <n-form-item label="模型名称">
-          <n-input v-model:value="settingsStore.model" placeholder="deepseek-chat" />
+          <n-input v-model:value="settingsStore.model" placeholder="deepseek-chat" class="rough-border !border-gray-300" />
         </n-form-item>
       </template>
 
       <template v-else>
         <n-form-item label="Ollama Endpoint">
-          <n-input v-model:value="settingsStore.ollamaEndpoint" placeholder="http://localhost:11434" />
-          <n-button size="small" class="ml-2" @click="settingsStore.fetchOllamaModels">刷新模型</n-button>
+          <n-input v-model:value="settingsStore.ollamaEndpoint" placeholder="http://localhost:11434" class="rough-border !border-gray-300" />
+          <n-button size="small" class="ml-2 !rounded-full" @click="settingsStore.fetchOllamaModels">刷新模型</n-button>
         </n-form-item>
         <n-form-item label="选择模型">
-          <n-select v-model:value="settingsStore.ollamaModel" :options="ollamaModelOptions" placeholder="请选择 Ollama 模型" />
+          <n-select v-model:value="settingsStore.ollamaModel" :options="ollamaModelOptions" placeholder="请选择 Ollama 模型" class="rough-border !border-gray-300" />
         </n-form-item>
       </template>
 
       <n-divider />
 
-      <h3 class="text-lg font-bold mb-4">常规设置</h3>
+      <h3 class="text-xl font-bold mb-4 text-crayon-pink">常规设置</h3>
       <n-form-item label="深色模式">
         <n-switch :value="settingsStore.isDarkMode" @update:value="settingsStore.toggleDarkMode" />
       </n-form-item>
     </n-form>
 
     <template #footer>
-      <div class="flex justify-end space-x-2">
-        <n-button @click="handleClose">取消</n-button>
-        <n-button type="primary" @click="handleSave">保存</n-button>
+      <div class="flex justify-end space-x-2 font-hand">
+        <n-button @click="handleClose" quaternary class="!rounded-full">取消</n-button>
+        <n-button @click="handleSave" class="!bg-crayon-green !text-white !border-none !rounded-full shadow-sm">保存</n-button>
       </div>
     </template>
   </n-modal>

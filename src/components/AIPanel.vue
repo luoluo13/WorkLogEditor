@@ -249,138 +249,147 @@ const clearChat = () => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full p-4 relative">
-    <!-- Header -->
-    <div class="font-bold mb-4 flex items-center justify-between">
-      <div class="flex items-center">
-        <n-avatar round size="small" class="mr-2">
-          <ChatbubbleEllipsesOutline />
-        </n-avatar>
-        AI 助手
-      </div>
-      <div class="flex space-x-1">
+  <div class="flex flex-col h-full bg-crayon-bg crayon-texture relative overflow-hidden">
+    <!-- Decorative Doodles -->
+    <div class="absolute -right-2 top-4 w-16 h-16 text-crayon-purple opacity-20 animate-float pointer-events-none">
+      <svg viewBox="0 0 100 100" fill="currentColor">
+        <path d="M50 20l5 15h15l-12 10 5 15-13-10-13 10 5-15-12-10h15z" />
+      </svg>
+    </div>
+
+    <div class="p-4 border-b border-gray-200 z-10 bg-white/50 backdrop-blur-sm">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-full bg-crayon-purple flex items-center justify-center text-white rough-border !border-crayon-purple">
+            <n-icon size="20"><ChatbubbleEllipsesOutline /></n-icon>
+          </div>
+          <span class="font-bold text-gray-700 font-hand text-lg">AI 助手</span>
+        </div>
         <n-button quaternary circle size="small" @click="clearChat">
           <template #icon><n-icon><TrashOutline /></n-icon></template>
         </n-button>
-        <n-popover trigger="click" placement="bottom-end" :width="300">
-          <template #trigger>
-            <n-button quaternary circle size="small">
-              <template #icon><n-icon><SettingsOutline /></n-icon></template>
-            </n-button>
-          </template>
-          <div class="p-2">
-            <h3 class="font-bold mb-4">AI 配置</h3>
-            <n-form size="small">
-              <n-form-item label="供应商">
-                <n-tag :type="settingsStore.provider === 'deepseek' ? 'primary' : 'success'" size="small">
-                  {{ settingsStore.provider === 'deepseek' ? 'DeepSeek' : 'Ollama' }}
-                </n-tag>
-                <n-button size="tiny" quaternary class="ml-2" @click="message.info('请在右上角设置中更改供应商')">更改</n-button>
-              </n-form-item>
-              <n-form-item label="模型">
-                <div class="text-xs truncate max-w-[200px]">
-                  {{ settingsStore.provider === 'deepseek' ? settingsStore.model : settingsStore.ollamaModel || '未选择' }}
-                </div>
-              </n-form-item>
-            </n-form>
-          </div>
-        </n-popover>
       </div>
     </div>
-    
-    <!-- Chat Messages -->
-    <n-scrollbar class="flex-1 pr-2">
-      <div class="space-y-4 pb-4">
+
+    <n-scrollbar class="flex-1 p-4 z-10" ref="scrollbar">
+      <div class="space-y-6">
         <div
           v-for="(msg, index) in messages"
           :key="index"
           :class="['flex', msg.role === 'user' ? 'justify-end' : 'justify-start']"
         >
-          <!-- Tool info message -->
-          <div v-if="msg.name === 'system_info'" class="flex items-center space-x-1 text-xs text-gray-400 italic">
-            <n-icon size="14"><BuildOutline /></n-icon>
-            <span>{{ msg.content }}</span>
+          <div v-if="msg.name === 'system_info'" class="w-full text-center">
+            <span class="text-[10px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full italic font-hand">
+              {{ msg.content }}
+            </span>
           </div>
-
-          <!-- Normal message -->
           <div
             v-else-if="msg.role !== 'tool'"
             :class="[
-              'max-w-[85%] p-3 rounded-lg text-sm whitespace-pre-wrap shadow-sm',
+              'max-w-[85%] p-3 rough-border shadow-sm relative',
               msg.role === 'user' 
-                ? 'bg-blue-600 text-white rounded-br-none' 
-                : 'bg-gray-100 dark:bg-zinc-800 rounded-bl-none border border-gray-200 dark:border-zinc-700'
+                ? 'bg-crayon-green text-white border-crayon-green !rounded-tr-none' 
+                : 'bg-white text-gray-700 border-gray-300 !rounded-tl-none'
             ]"
           >
-            {{ msg.content }}
+            <!-- Message Tail -->
+            <div 
+              :class="[
+                'absolute top-0 w-4 h-4',
+                msg.role === 'user' ? '-right-2 text-crayon-green' : '-left-2 text-white'
+              ]"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor">
+                <path d="M0 0 L20 0 L10 10 Z" v-if="msg.role === 'assistant'" />
+                <path d="M20 0 L0 0 L10 10 Z" v-else />
+              </svg>
+            </div>
+
+            <div class="text-sm font-hand leading-relaxed whitespace-pre-wrap">
+              {{ msg.content }}
+            </div>
+            <div v-if="msg.tool_calls" class="mt-2 pt-2 border-t border-dashed border-gray-200">
+              <div v-for="call in msg.tool_calls" :key="call.id" class="text-[10px] text-gray-400 italic">
+                正在执行: {{ call.function.name }}...
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="loading" class="flex justify-start">
+          <div class="bg-white p-3 rough-border border-gray-300 !rounded-tl-none animate-pulse">
+            <div class="flex space-x-1">
+              <div class="w-2 h-2 bg-gray-300 rounded-full"></div>
+              <div class="w-2 h-2 bg-gray-300 rounded-full"></div>
+              <div class="w-2 h-2 bg-gray-300 rounded-full"></div>
+            </div>
           </div>
         </div>
       </div>
     </n-scrollbar>
 
-    <!-- Input Area -->
-    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky bottom-0">
-      <n-input
-        v-model:value="userInput"
-        type="textarea"
-        placeholder="输入指令 (如: 总结今天的工作)..."
-        :autosize="{ minRows: 2, maxRows: 5 }"
-        :disabled="loading"
-        @keypress.enter.prevent="sendMessage"
-      />
-      <div class="flex justify-between items-center mt-2">
-        <div class="text-xs text-gray-400">
-          {{ loading ? 'AI 正在思考中...' : '支持工具调用' }}
-        </div>
-        <n-button type="primary" :loading="loading" @click="sendMessage" :disabled="!userInput.trim()">
-          <template #icon>
-            <n-icon><SendOutline /></n-icon>
-          </template>
-          发送
+    <div class="p-4 z-10 bg-white/50 backdrop-blur-sm border-t border-gray-200">
+      <div class="relative">
+        <n-input
+          v-model:value="userInput"
+          type="textarea"
+          :autosize="{ minRows: 1, maxRows: 4 }"
+          placeholder="输入指令 (如: 总结今天的工作)..."
+          @keypress.enter.prevent="sendMessage"
+          class="!bg-white !border-2 !border-gray-800 rough-border pr-12"
+          :bordered="false"
+        />
+        <n-button
+          type="primary"
+          circle
+          class="absolute right-2 bottom-2 !bg-crayon-green !border-none shadow-md"
+          :loading="loading"
+          @click="sendMessage"
+        >
+          <template #icon><n-icon><SendOutline /></n-icon></template>
         </n-button>
       </div>
     </div>
 
-    <!-- Confirmation Modal -->
+    <!-- Tool Confirmation Modal -->
     <n-modal v-model:show="showConfirmModal" :mask-closable="false">
       <n-card
         style="width: 400px"
-        title="确认操作"
+        title="确认 AI 的建议"
         :bordered="false"
         size="huge"
         role="dialog"
         aria-modal="true"
+        class="rough-border border-2 border-gray-800"
       >
         <template #header-extra>
-          <n-icon size="24" color="#f0a020"><BuildOutline /></n-icon>
+          <n-icon size="24" class="text-crayon-yellow"><BuildOutline /></n-icon>
         </template>
         
-        <div v-if="pendingToolCall">
-          <p class="mb-4">AI 想要执行以下操作：</p>
-          <div class="bg-gray-50 dark:bg-zinc-800 p-3 rounded text-sm mb-4">
-            <div class="font-bold text-blue-600 mb-1">
-              {{ pendingToolCall.result.action === 'create_log' ? '新建日志' : '修改日志' }}
+        <div v-if="pendingToolCall" class="font-hand">
+          <div class="mb-4 p-3 bg-crayon-yellow/20 rounded-lg border border-crayon-yellow/30">
+            <div class="font-bold text-gray-700 mb-2">
+              AI 想要执行以下操作：
             </div>
-            <div class="space-y-1">
-              <div><span class="text-gray-400">标题:</span> {{ JSON.parse(pendingToolCall.toolCall.function.arguments).title }}</div>
-              <div class="truncate"><span class="text-gray-400">内容:</span> {{ JSON.parse(pendingToolCall.toolCall.function.arguments).content }}</div>
+            <div class="text-sm text-gray-600">
+               {{ pendingToolCall.result.action === 'create_log' ? '新建日志' : '修改日志' }}: {{ JSON.parse(pendingToolCall.toolCall.function.arguments).title }}
             </div>
           </div>
-          <p class="text-xs text-gray-500 italic">此操作将修改您的本地数据。</p>
-        </div>
-
-        <template #footer>
-          <n-space justify="end">
-            <n-button @click="cancelToolExecution" :disabled="confirmLoading">
+          
+          <div class="flex justify-end space-x-3">
+            <n-button @click="cancelToolExecution" quaternary class="!rounded-full" :disabled="confirmLoading">
               <template #icon><n-icon><CloseCircleOutline /></n-icon></template>
               取消
             </n-button>
-            <n-button type="primary" @click="confirmToolExecution" :loading="confirmLoading">
+            <n-button 
+              @click="confirmToolExecution" 
+              class="!bg-crayon-green !text-white !border-none !rounded-full shadow-sm"
+              :loading="confirmLoading"
+            >
               <template #icon><n-icon><CheckmarkCircleOutline /></n-icon></template>
-              确认执行
+              执行
             </n-button>
-          </n-space>
-        </template>
+          </div>
+        </div>
       </n-card>
     </n-modal>
   </div>
