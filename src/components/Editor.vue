@@ -33,7 +33,7 @@ const exportOptions = [
   { label: '导出为 Markdown', key: 'markdown' }
 ]
 
-const toolbars = [
+const toolbars: any[] = [
   'bold',
   'underline',
   'italic',

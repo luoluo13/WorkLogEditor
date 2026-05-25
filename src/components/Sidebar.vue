@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { NList, NListItem, NScrollbar, NButton, NIcon, NInput, NTag, NSpace, NDropdown, useNotification, NCalendar, NTabs, NTabPane, NPopconfirm } from 'naive-ui'
+import { NScrollbar, NButton, NIcon, NInput, NDropdown, useNotification, NCalendar, NTabs, NTabPane, NPopconfirm } from 'naive-ui'
 import { AddOutline, SearchOutline, EllipsisVerticalOutline, CalendarOutline, ListOutline, TrashOutline } from '@vicons/ionicons5'
 import { save, open } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'

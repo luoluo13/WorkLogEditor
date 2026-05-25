@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { NInput, NButton, NScrollbar, NAvatar, useMessage, NPopover, NForm, NFormItem, NIcon, NModal, NCard, NSpace, NTag } from 'naive-ui'
-import { SendOutline, ChatbubbleEllipsesOutline, SettingsOutline, TrashOutline, BuildOutline, CheckmarkCircleOutline, CloseCircleOutline } from '@vicons/ionicons5'
+import { NInput, NButton, NScrollbar, useMessage, NIcon, NModal, NCard } from 'naive-ui'
+import { SendOutline, ChatbubbleEllipsesOutline, TrashOutline, BuildOutline, CheckmarkCircleOutline, CloseCircleOutline } from '@vicons/ionicons5'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../stores/settings'
 import { useLogStore } from '../stores/log'
