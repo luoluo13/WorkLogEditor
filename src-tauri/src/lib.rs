@@ -282,6 +282,29 @@ pub struct ToolFunctionDefinition {
 }
 
 #[tauri::command]
+async fn save_snapshot(app_handle: tauri::AppHandle, base64_data: String, filename: String) -> Result<(), String> {
+    use tauri_plugin_dialog::DialogExt;
+    use base64::{Engine as _, engine::general_purpose};
+    
+    // Convert base64 to bytes
+    let data = base64_data.split(',').last().ok_or("Invalid base64 data")?;
+    let bytes = general_purpose::STANDARD.decode(data).map_err(|e| e.to_string())?;
+
+    let path = app_handle.dialog()
+        .file()
+        .set_file_name(&filename)
+        .add_filter("Image", &["png"])
+        .blocking_save_file();
+
+    if let Some(file_path) = path {
+        std::fs::write(file_path.as_path().ok_or("Invalid path")?, bytes).map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        Err("Save cancelled".to_string())
+    }
+}
+
+#[tauri::command]
 fn get_all_tools() -> Vec<ToolSchema> {
     vec![
         ToolSchema {
@@ -405,6 +428,20 @@ fn get_all_tools() -> Vec<ToolSchema> {
                 }),
             },
         },
+        ToolSchema {
+            r#type: "function".to_string(),
+            function: ToolFunctionDefinition {
+                name: "create_snapshot".to_string(),
+                description: "为当前的日志生成一张精美的手绘风格快照图片。".to_string(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "string", "description": "日志 ID" }
+                    },
+                    "required": ["id"]
+                }),
+            },
+        },
     ]
 }
 
@@ -500,6 +537,14 @@ async fn execute_tool(app_handle: tauri::AppHandle, name: String, arguments: Str
                 "success": true,
                 "needs_confirmation": true,
                 "action": "update_log",
+                "data": args
+            }))
+        },
+        "create_snapshot" => {
+            Ok(serde_json::json!({
+                "success": true,
+                "needs_confirmation": false,
+                "action": "create_snapshot",
                 "data": args
             }))
         },
@@ -679,7 +724,8 @@ pub fn run() {
             get_all_tools,
             execute_tool,
             get_ollama_models,
-            ask_ai_with_tools
+            ask_ai_with_tools,
+            save_snapshot
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
