@@ -216,7 +216,7 @@ async fn export_logs_as_zip(logs: Vec<LogEntry>, zip_path: String) -> Result<(),
 }
 
 #[tauri::command]
-async fn import_from_markdown(path: String) -> Result<LogEntry, String> {
+async fn import_from_markdown(path: String, date: Option<String>) -> Result<LogEntry, String> {
     let mut file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
     let mut content = String::new();
     file.read_to_string(&mut content).map_err(|e| e.to_string())?;
@@ -234,11 +234,13 @@ async fn import_from_markdown(path: String) -> Result<LogEntry, String> {
         filename.to_string()
     };
 
+    let log_date = date.unwrap_or_else(|| chrono::Local::now().format("%Y/%m/%d").to_string());
+
     let log = LogEntry {
         id: uuid::Uuid::new_v4().to_string(),
         title,
         content,
-        date: chrono::Local::now().format("%Y/%m/%d").to_string(),
+        date: log_date,
         tags: vec!["Imported".to_string()],
     };
 

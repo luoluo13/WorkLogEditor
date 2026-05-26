@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NConfigProvider, NLayout, NLayoutSider, NLayoutContent, NLayoutHeader, NMessageProvider, NNotificationProvider, NButton, NIcon, darkTheme } from 'naive-ui'
+import { NConfigProvider, NLayout, NLayoutHeader, NMessageProvider, NNotificationProvider, NButton, NIcon, NSplit, darkTheme } from 'naive-ui'
 import { MoonOutline, SunnyOutline, SettingsOutline, ChatbubbleEllipsesOutline, CloseOutline } from '@vicons/ionicons5'
 import { useSettingsStore } from './stores/settings'
 import { useLogStore } from './stores/log'
@@ -17,6 +17,8 @@ const showAIPanel = ref(true)
 const showSettings = ref(false)
 const isMobile = ref(window.innerWidth < 768)
 const collapsedSidebar = ref(window.innerWidth < 1024)
+const sidebarSplitSize = ref(0.24)
+const editorSplitSize = ref(0.74)
 
 const handleResize = () => {
   isMobile.value = window.innerWidth < 768
@@ -46,25 +48,7 @@ onUnmounted(() => {
   <n-config-provider :theme="theme">
     <n-notification-provider>
       <n-message-provider>
-        <n-layout has-sider class="h-screen overflow-hidden bg-crayon-bg">
-        <!-- Sidebar -->
-        <n-layout-sider
-          v-if="!isMobile || !collapsedSidebar"
-          collapse-mode="width"
-          :collapsed-width="isMobile ? 0 : 64"
-          :width="isMobile ? '100%' : 280"
-          :collapsed="collapsedSidebar"
-          show-trigger
-          resizable
-          class="h-full z-20 border-r-2 border-gray-800"
-          @collapse="collapsedSidebar = true"
-          @expand="collapsedSidebar = false"
-        >
-          <Sidebar />
-        </n-layout-sider>
-
-        <!-- Main Content -->
-        <n-layout class="h-full bg-transparent">
+        <n-layout class="h-screen overflow-hidden bg-crayon-bg">
           <n-layout-header class="p-4 flex justify-between items-center h-16 bg-white/80 backdrop-blur-md border-b-2 border-gray-800 z-10">
             <div class="flex items-center space-x-2">
               <n-button v-if="isMobile" quaternary circle @click="collapsedSidebar = !collapsedSidebar">
@@ -78,7 +62,7 @@ onUnmounted(() => {
                     <path d="M50 80c-10 0-25-10-25-25 0-15 15-20 25-10 10-10 25-5 25 10 0 15-15 25-25 25z" />
                   </svg>
                 </div>
-                <h1 class="text-xl md:text-2xl font-bold font-hand text-gray-800">智能工作日志</h1>
+                <h1 class="text-xl md:text-2xl font-bold font-hand text-gray-800">WorkLogEditor</h1>
               </div>
             </div>
             <div class="flex items-center space-x-1 md:space-x-2">
@@ -106,23 +90,62 @@ onUnmounted(() => {
             </div>
           </n-layout-header>
 
-          <n-layout has-sider position="absolute" style="top: 64px; bottom: 0" class="bg-transparent">
-            <n-layout-content content-style="padding: 0;" class="bg-transparent overflow-y-auto">
+          <div class="h-[calc(100vh-64px)] bg-transparent">
+            <div v-if="isMobile" class="h-full bg-transparent overflow-y-auto">
               <Editor />
-            </n-layout-content>
+            </div>
 
-            <n-layout-sider
-              v-if="showAIPanel && !isMobile"
-              width="350"
-              class="h-full border-l-2 border-gray-800 shadow-xl"
+            <n-split
+              v-else
+              direction="horizontal"
+              :default-size="sidebarSplitSize"
+              :size="sidebarSplitSize"
+              :min="0.16"
+              :max="0.42"
+              :resize-trigger-size="10"
+              class="h-full app-shell-split"
+              @update:size="sidebarSplitSize = $event"
             >
-              <AIPanel />
-            </n-layout-sider>
-          </n-layout>
-        </n-layout>
-      </n-layout>
+              <template #1>
+                <div class="h-full border-r-2 border-gray-800 bg-crayon-bg">
+                  <Sidebar />
+                </div>
+              </template>
 
-      <!-- Mobile AI Drawer -->
+              <template #2>
+                <n-split
+                  v-if="showAIPanel"
+                  direction="horizontal"
+                  :default-size="editorSplitSize"
+                  :size="editorSplitSize"
+                  :min="0.45"
+                  :max="0.85"
+                  :resize-trigger-size="10"
+                  class="h-full app-shell-split"
+                  @update:size="editorSplitSize = $event"
+                >
+                  <template #1>
+                    <div class="h-full bg-transparent overflow-y-auto">
+                      <Editor />
+                    </div>
+                  </template>
+
+                  <template #2>
+                    <div class="h-full border-l-2 border-gray-800 shadow-xl bg-white/70">
+                      <AIPanel />
+                    </div>
+                  </template>
+                </n-split>
+
+                <div v-else class="h-full bg-transparent overflow-y-auto">
+                  <Editor />
+                </div>
+              </template>
+            </n-split>
+          </div>
+        </n-layout>
+
+        <!-- Mobile AI Drawer -->
         <div 
           v-if="showAIPanel && isMobile" 
           class="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm"
@@ -144,6 +167,27 @@ onUnmounted(() => {
           </div>
         </div>
 
+        <div
+          v-if="isMobile && !collapsedSidebar"
+          class="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm"
+          @click="collapsedSidebar = true"
+        >
+          <div
+            class="absolute left-0 top-0 bottom-0 w-[85%] bg-white shadow-2xl"
+            @click.stop
+          >
+            <Sidebar />
+            <n-button
+              quaternary
+              circle
+              class="absolute top-2 right-2 z-50"
+              @click="collapsedSidebar = true"
+            >
+              <template #icon><n-icon><CloseOutline /></n-icon></template>
+            </n-button>
+          </div>
+        </div>
+
         <SettingsModal v-model:show="showSettings" />
       </n-message-provider>
     </n-notification-provider>
@@ -153,5 +197,29 @@ onUnmounted(() => {
 <style>
 .n-layout-header {
   background-color: transparent;
+}
+
+.app-shell-split :deep(.n-split__resize-trigger-wrapper) {
+  width: 8px !important;
+  margin-left: -4px;
+  margin-right: -4px;
+  position: relative;
+  z-index: 10;
+  cursor: col-resize;
+  background: transparent !important;
+}
+
+.app-shell-split :deep(.n-split__resize-trigger) {
+  width: 3px !important;
+  height: 100%;
+  margin: 0 auto;
+  background-color: transparent !important;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+.app-shell-split :deep(.n-split__resize-trigger:hover),
+.app-shell-split :deep(.n-split__resize-trigger--hover) {
+  background-color: transparent !important;
 }
 </style>

@@ -7,7 +7,8 @@ import { useSettingsStore } from '../stores/settings'
 import { NInput, NButton, useNotification, NDropdown, NIcon, NDynamicTags, NColorPicker, NPopover } from 'naive-ui'
 import { save } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'
-import { DownloadOutline, PricetagsOutline, AddOutline, ColorPaletteOutline } from '@vicons/ionicons5'
+import { DownloadOutline, PricetagsOutline, AddOutline, ColorPaletteOutline, ImageOutline } from '@vicons/ionicons5'
+import SnapshotGenerator from './SnapshotGenerator.vue'
 
 const logStore = useLogStore()
 const settingsStore = useSettingsStore()
@@ -185,6 +186,15 @@ onUnmounted(() => {
         @blur="onAutoSave"
       />
       <div class="flex justify-end space-x-2">
+        <n-button 
+          quaternary 
+          circle 
+          class="!text-gray-600"
+          @click="logStore.showSnapshot = true"
+          title="生成手绘风快照"
+        >
+          <template #icon><n-icon><ImageOutline /></n-icon></template>
+        </n-button>
         <n-dropdown :options="exportOptions" @select="handleExport">
           <n-button quaternary circle class="!text-gray-600">
             <template #icon><n-icon><DownloadOutline /></n-icon></template>
@@ -282,8 +292,9 @@ onUnmounted(() => {
       </span>
       <span>共 {{ wordCount }} 个字</span>
     </div>
+  <SnapshotGenerator v-model:show="logStore.showSnapshot" :log="logStore.currentLog" />
   </div>
-  <div v-else class="h-full flex flex-col items-center justify-center bg-crayon-bg crayon-texture">
+  <div v-else class="h-full flex items-center justify-center bg-crayon-bg crayon-texture">
     <div class="w-48 h-48 text-crayon-blue opacity-30 animate-float mb-4">
       <svg viewBox="0 0 100 100" fill="currentColor">
         <path d="M20 50c0-10 10-15 20-15 5-10 20-10 25 0 10 0 15 10 15 15 0 10-10 15-20 15H35c-10 0-15-5-15-15z" />

@@ -88,6 +88,27 @@ const handleToolCalls = async (toolCalls: any[]) => {
         return 'WAITING_FOR_CONFIRMATION'
       }
 
+      if (result.action === 'create_snapshot') {
+        const args = JSON.parse(argsString)
+        const targetLog = logStore.logs.find((l: any) => l.id === args.id)
+        if (targetLog) {
+          logStore.currentLog = targetLog
+          logStore.showSnapshot = true
+          results.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ success: true, message: '已为您打开日志快照预览窗口' })
+          })
+        } else {
+          results.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({ success: false, message: '未找到指定的日志' })
+          })
+        }
+        continue
+      }
+
       results.push({
         role: 'tool',
         tool_call_id: toolCall.id,

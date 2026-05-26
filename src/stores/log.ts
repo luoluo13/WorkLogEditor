@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 
 export interface LogEntry {
@@ -14,6 +14,22 @@ export const useLogStore = defineStore('log', () => {
   const logs = ref<LogEntry[]>([])
   const currentLog = ref<LogEntry | null>(null)
   const isLoading = ref(false)
+  const showSnapshot = ref(false)
+  const filterDate = ref<string>('all') // 'all' means show all, 'today' means today, or YYYY/MM/DD
+
+  const filteredLogs = computed(() => {
+    let result = [...logs.value]
+    
+    // Date Filtering
+    if (filterDate.value === 'today') {
+      const today = new Date().toLocaleDateString()
+      result = result.filter(l => l.date === today)
+    } else if (filterDate.value && filterDate.value !== 'all') {
+      result = result.filter(l => l.date === filterDate.value)
+    }
+
+    return result
+  })
 
   async function fetchLogs() {
     isLoading.value = true
@@ -83,5 +99,31 @@ export const useLogStore = defineStore('log', () => {
     }
   }
 
-  return { logs, currentLog, isLoading, fetchLogs, addLog, updateLog, deleteLog, searchLogs }
+  function reorderLogs(newLogs: LogEntry[]) {
+    logs.value = newLogs
+  }
+
+  function sortLogsByDate(order: 'asc' | 'desc' = 'desc') {
+    logs.value.sort((a, b) => {
+      const dateA = new Date(a.date).getTime()
+      const dateB = new Date(b.date).getTime()
+      return order === 'desc' ? dateB - dateA : dateA - dateB
+    })
+  }
+
+  return { 
+    logs, 
+    filteredLogs,
+    currentLog, 
+    isLoading, 
+    showSnapshot, 
+    filterDate,
+    fetchLogs, 
+    addLog, 
+    updateLog, 
+    deleteLog, 
+    searchLogs,
+    reorderLogs,
+    sortLogsByDate
+  }
 })

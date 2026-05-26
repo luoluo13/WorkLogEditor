@@ -1,34 +1,43 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { NScrollbar, NButton, NIcon, NInput, NDropdown, useNotification, NCalendar, NTabs, NTabPane, NPopconfirm } from 'naive-ui'
-import { AddOutline, SearchOutline, EllipsisVerticalOutline, CalendarOutline, ListOutline, TrashOutline } from '@vicons/ionicons5'
+import { NScrollbar, NButton, NIcon, NInput, NDropdown, useNotification, NCalendar, NTabs, NTabPane, NPopconfirm, NDatePicker, NRadioGroup, NRadioButton, NSpace, NModal } from 'naive-ui'
+import { AddOutline, SearchOutline, EllipsisVerticalOutline, CalendarOutline, ListOutline, TrashOutline, SwapVerticalOutline } from '@vicons/ionicons5'
 import { save, open } from '@tauri-apps/plugin-dialog'
 import { invoke } from '@tauri-apps/api/core'
 import { useLogStore } from '../stores/log'
+import draggable from 'vuedraggable'
 
 const logStore = useLogStore()
 const notification = useNotification()
 
 const currentTab = ref('list')
 const searchKeyword = ref('')
+const importDate = ref<number | null>(Date.now())
+const showImportDatePicker = ref(false)
+const pendingImportPath = ref<string | null>(null)
 let searchTimeout: number | null = null
 
+const displayLogs = computed({
+  get: () => logStore.filteredLogs,
+  set: (val) => logStore.reorderLogs(val)
+})
+
 const logDates = computed(() => {
-  return new Set(logStore.logs.map(log => log.date))
+  return new Set(logStore.logs.map((log: any) => log.date))
 })
 
 const handleDateClick = async (date: number) => {
   const dateStr = new Date(date).toLocaleDateString()
-  const log = logStore.logs.find(l => l.date === dateStr)
-  if (log) {
-    logStore.currentLog = log
-    currentTab.value = 'list'
-  }
+  logStore.filterDate = dateStr
+  currentTab.value = 'list'
 }
 
 const moreOptions = [
   { label: '批量导出 (ZIP)', key: 'export_zip' },
-  { label: '导入 Markdown', key: 'import_md' }
+  { label: '导入 Markdown', key: 'import_md' },
+  { type: 'divider', key: 'd1' },
+  { label: '按日期降序', key: 'sort_desc' },
+  { label: '按日期升序', key: 'sort_asc' }
 ]
 
 const handleMoreAction = async (key: string) => {
@@ -54,16 +63,39 @@ const handleMoreAction = async (key: string) => {
       filters: [{ name: 'Markdown', extensions: ['md'] }],
       multiple: false
     })
+    
     if (filePath && typeof filePath === 'string') {
-      try {
-        const importedLog = await invoke<any>('import_from_markdown', { path: filePath })
-        await logStore.addLog(importedLog)
-        notification.success({ content: '导入成功' })
-      } catch (err) {
-        notification.error({ content: '导入失败' })
-      }
+      pendingImportPath.value = filePath
+      showImportDatePicker.value = true
     }
+  } else if (key === 'sort_desc') {
+    logStore.sortLogsByDate('desc')
+  } else if (key === 'sort_asc') {
+    logStore.sortLogsByDate('asc')
   }
+}
+
+const confirmImport = async () => {
+  if (!pendingImportPath.value) return
+  
+  try {
+    const dateStr = importDate.value ? new Date(importDate.value).toLocaleDateString() : new Date().toLocaleDateString()
+    const importedLog = await invoke<any>('import_from_markdown', { 
+      path: pendingImportPath.value,
+      date: dateStr
+    })
+    await logStore.addLog(importedLog)
+    notification.success({ content: `已导入至 ${dateStr}` })
+    showImportDatePicker.value = false
+    pendingImportPath.value = null
+  } catch (err) {
+    notification.error({ content: '导入失败' })
+  }
+}
+
+const cancelImport = () => {
+  showImportDatePicker.value = false
+  pendingImportPath.value = null
 }
 
 watch(searchKeyword, (newVal) => {
@@ -140,6 +172,13 @@ const deleteLog = async (id: string) => {
           </template>
         </n-input>
       </div>
+
+      <div class="mb-4">
+        <n-radio-group v-model:value="logStore.filterDate" size="small" class="w-full">
+          <n-radio-button value="all" class="flex-1 text-center">全部</n-radio-button>
+          <n-radio-button value="today" class="flex-1 text-center">今日</n-radio-button>
+        </n-radio-group>
+      </div>
       
       <n-tabs v-model:value="currentTab" type="segment" size="small" class="custom-tabs">
         <n-tab-pane name="list" tab="列表">
@@ -163,47 +202,61 @@ const deleteLog = async (id: string) => {
     
     <n-scrollbar class="flex-1 z-10">
       <div v-if="currentTab === 'list'" class="p-4 pt-2">
-        <div class="space-y-3">
-          <div
-            v-for="log in logStore.logs"
-            :key="log.id"
-            @click="logStore.currentLog = log"
-            :class="[
-              'p-3 cursor-pointer transition-all rough-border bg-white hover:translate-x-1',
-              logStore.currentLog?.id === log.id ? 'border-crayon-blue !border-4 ring-2 ring-crayon-blue/20 shadow-inner' : 'border-gray-300'
-            ]"
-            class="relative group"
-          >
-            <div class="flex flex-col space-y-1 pr-8">
-              <span class="font-bold text-gray-700 truncate text-base">{{ log.title }}</span>
-              <div class="flex justify-between items-center">
-                <span class="text-xs text-gray-400 italic">{{ log.date }}</span>
-                <div class="flex space-x-1" v-if="log.tags && log.tags.length > 0">
-                  <span 
-                    v-for="tag in log.tags.slice(0, 2)" 
-                    :key="tag" 
-                    class="px-2 py-0.5 text-[10px] bg-crayon-purple/20 text-crayon-purple rounded-full border border-crayon-purple/30"
-                  >
-                    #{{ tag }}
-                  </span>
+        <draggable 
+          v-model="displayLogs" 
+          item-key="id" 
+          handle=".drag-handle"
+          class="space-y-3"
+          :animation="200"
+        >
+          <template #item="{ element: log }">
+            <div
+              @click="logStore.currentLog = log"
+              :class="[
+                'p-3 cursor-pointer transition-all rough-border bg-white hover:translate-x-1',
+                logStore.currentLog?.id === log.id ? 'border-crayon-blue !border-4 ring-2 ring-crayon-blue/20 shadow-inner' : 'border-gray-300'
+              ]"
+              class="relative group"
+            >
+              <div class="flex items-start">
+                <!-- Drag Handle -->
+                <div class="drag-handle mr-2 mt-1 cursor-move opacity-30 group-hover:opacity-100 transition-opacity">
+                  <n-icon><SwapVerticalOutline /></n-icon>
+                </div>
+                
+                <div class="flex flex-col space-y-1 pr-8 flex-1">
+                  <span class="font-bold text-gray-700 truncate text-base">{{ log.title }}</span>
+                  <div class="flex justify-between items-center">
+                    <span class="text-xs text-gray-400 italic">{{ log.date }}</span>
+                    <div class="flex space-x-1" v-if="log.tags && log.tags.length > 0">
+                      <span 
+                        v-for="tag in log.tags.slice(0, 2)" 
+                        :key="tag" 
+                        class="px-2 py-0.5 text-[10px] bg-crayon-purple/20 text-crayon-purple rounded-full border border-crayon-purple/30"
+                      >
+                        #{{ tag }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              <!-- Delete Button -->
+              <div class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <n-popconfirm @positive-click.stop="deleteLog(log.id)" @click.stop>
+                  <template #trigger>
+                    <n-button quaternary circle size="small" type="error">
+                      <template #icon>
+                        <n-icon><TrashOutline /></n-icon>
+                      </template>
+                    </n-button>
+                  </template>
+                  确定删除吗？
+                </n-popconfirm>
+              </div>
             </div>
-            <!-- Delete Button -->
-            <div class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <n-popconfirm @positive-click.stop="deleteLog(log.id)" @click.stop>
-                <template #trigger>
-                  <n-button quaternary circle size="small" type="error">
-                    <template #icon>
-                      <n-icon><TrashOutline /></n-icon>
-                    </template>
-                  </n-button>
-                </template>
-                确定删除吗？
-              </n-popconfirm>
-            </div>
-          </div>
-        </div>
+          </template>
+        </draggable>
       </div>
       <div v-else class="p-4 calendar-container">
         <div class="bg-white p-2 rough-border">
@@ -218,6 +271,18 @@ const deleteLog = async (id: string) => {
         </div>
       </div>
     </n-scrollbar>
+
+    <!-- Import Date Modal -->
+    <n-modal v-model:show="showImportDatePicker" preset="card" title="选择导入日期" style="width: 400px">
+      <div class="p-4 space-y-4">
+        <p class="text-gray-500">请选择要将 Markdown 导入到哪一天的日志：</p>
+        <n-date-picker v-model:value="importDate" type="date" class="w-full" />
+        <n-space justify="end">
+          <n-button @click="cancelImport">取消</n-button>
+          <n-button type="primary" @click="confirmImport">确认导入</n-button>
+        </n-space>
+      </div>
+    </n-modal>
   </div>
 </template>
 
